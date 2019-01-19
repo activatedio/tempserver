@@ -51,7 +51,9 @@ func Start(config *Config) (server *Server, err error) {
 		return server, err
 	}
 
-	err = server.waitFor(config.WaitFor)
+	if config.WaitFor != "" {
+		err = server.waitFor(config.WaitFor)
+	}
 
 	return server, err
 }
@@ -64,19 +66,23 @@ func (s *Server) start() (err error) {
 
 	configPath := s.dir + "/config"
 
-	f, err := os.Create(configPath)
+	if s.config.ConfigTemplate != nil && s.config.Config != nil {
 
-	if err != nil {
-		return err
+		f, err := os.Create(configPath)
+
+		if err != nil {
+			return err
+		}
+
+		err = s.config.ConfigTemplate.Execute(f, s.config.Config)
+
+		if err != nil {
+			return err
+		}
+
 	}
 
-	err = s.config.ConfigTemplate.Execute(f, s.config.Config)
-
-	if err != nil {
-		return err
-	}
-
-	s.cmd = exec.Command(s.config.Path, s.config.Arguments(s.dir+"/config")...)
+	s.cmd = exec.Command(s.config.Path, s.config.Arguments(configPath)...)
 
 	s.stdout, _ = s.cmd.StdoutPipe()
 	s.stderr, _ = s.cmd.StderrPipe()
